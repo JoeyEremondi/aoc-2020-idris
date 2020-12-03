@@ -47,9 +47,9 @@ elemAny (There y) px = There (elemAny y px)
 -- sum to 2020, and a proof that the solution is their product
 record Soln (l : List Int) where
   constructor MkSoln
-  soln : Int
-  entry1 : Int
-  entry2 : Int
+  {soln : Int}
+  {entry1 : Int}
+  {entry2 : Int}
   in1 : Elem entry1 l
   in2 : Elem entry2 l
   sum2020 : entry1 + entry2 = 2020
@@ -74,14 +74,14 @@ makeSoln :
 makeSoln l anyPf with (anyElem anyPf)
   makeSoln l anyPf  | (i1 ** (elem1 , anyPf2)) with (anyElem anyPf2)
     makeSoln l anyPf  | (i1 ** (elem1 , anyPf2)) | (i2 ** (elem2 , sumPr)) =
-      MkSoln (i1 * i2) i1 i2 elem1 elem2 sumPr Refl
+      MkSoln elem1 elem2 sumPr Refl
 
 -- Given a list of integers, determine whether there is a solution
 -- to the problem, given that list
 find2020Soln : (l : List Int) -> Dec (Soln l)
 find2020Soln inputs = case find2020Pair inputs of
   Yes pf => Yes (makeSoln inputs pf)
-  No npf => No (\ (MkSoln _ i1 i2 in1 in2 eq _) => npf (elemAny in1 (elemAny in2 eq)))
+  No npf => No (\ (MkSoln in1 in2 eq _) => npf (elemAny in1 (elemAny in2 eq)))
 
 -- Parse our input, find the solution, then print it
 main : IO ()
