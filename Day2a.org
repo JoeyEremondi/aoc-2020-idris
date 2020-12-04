@@ -2,7 +2,7 @@
 
 * Some Imports
 
-#+begin_src idris2
+#+begin_src idris
 
   import System.File
   import Data.Strings
@@ -15,20 +15,20 @@
 #+end_src
 * Helper Functions
 ** Convert Either to have Strings for the error case
-#+begin_src idris2
+#+begin_src idris
   stringEither : Show a => Either a b -> Either String b
   stringEither = bimap show id
 
 #+end_src
 
 ** Convert `Dec` into `Either`
-#+begin_src idris2
+#+begin_src idris
   decEither : Dec a -> Either String a
   decEither (Yes a) = Right a
   decEither (No b) = Left "No solution"
 #+end_src
 ** Print the value of an Either, or its error string
-#+begin_src idris2
+#+begin_src idris
   -- Print the value of an Either, or its error string
   ePrint : Show a => Either String a -> IO ()
   ePrint ma = case ma of
