@@ -1,0 +1,37 @@
+#+TITLE: Verified AOC in Idris2: Day 2 Puzzle 1
+
+* Some Imports
+
+#+begin_src idris2
+
+  import System.File
+  import Data.Strings
+  import Data.Either
+  import Data.List
+  import Data.List.Quantifiers
+  import Data.List.Elem
+  import Decidable.Equality
+  import Data.Void
+#+end_src
+* Helper Functions
+** Convert Either to have Strings for the error case
+#+begin_src idris2
+  stringEither : Show a => Either a b -> Either String b
+  stringEither = bimap show id
+
+#+end_src
+
+** Convert `Dec` into `Either`
+#+begin_src idris2
+  decEither : Dec a -> Either String a
+  decEither (Yes a) = Right a
+  decEither (No b) = Left "No solution"
+#+end_src
+** Print the value of an Either, or its error string
+#+begin_src idris2
+  -- Print the value of an Either, or its error string
+  ePrint : Show a => Either String a -> IO ()
+  ePrint ma = case ma of
+    Left e => putStrLn ("ERROR: " ++ e)
+    Right x => putStrLn (show x)
+#+end_src
