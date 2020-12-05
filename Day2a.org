@@ -2,7 +2,7 @@
 
 * Some Imports
 
-#+begin_src idris
+#+begin_src idris2
 
   import System.File
   import Data.Strings
@@ -15,23 +15,46 @@
 #+end_src
 * Helper Functions
 ** Convert Either to have Strings for the error case
-#+begin_src idris
+#+begin_src idris2
   stringEither : Show a => Either a b -> Either String b
   stringEither = bimap show id
 
 #+end_src
 
 ** Convert `Dec` into `Either`
-#+begin_src idris
+#+begin_src idris2
   decEither : Dec a -> Either String a
   decEither (Yes a) = Right a
   decEither (No b) = Left "No solution"
 #+end_src
 ** Print the value of an Either, or its error string
-#+begin_src idris
+#+begin_src idris2
   -- Print the value of an Either, or its error string
   ePrint : Show a => Either String a -> IO ()
   ePrint ma = case ma of
     Left e => putStrLn ("ERROR: " ++ e)
     Right x => putStrLn (show x)
+#+end_src
+
+* Datatypes describing the solution
+
+** Constraints on a Password's Validity
+#+begin_src idris2
+record Constraint where
+  constructor MkConstr
+    lower, upper : Nat
+    char : Char
+#+end_src
+
+** Valid Passwords
+   - Given a character and a range of occurrences,
+     a password is valid for those constraints if it
+     contains a number of occurrences of the character
+     in the appropriate range
+
+#+begin_src idris2
+-- record ValidPassword (lower : Nat) (upper : Nat) (char : Char) where
+--   constructor MkValid
+
+
 #+end_src
