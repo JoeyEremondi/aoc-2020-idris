@@ -16,29 +16,7 @@
   import Data.Nat.Order
   import Decidable.Decidable
   import Decidable.Order
-#+end_src
-* Helper Functions
-** Convert Either to have Strings for the error case
-#+begin_src idris2
-  stringEither : Show a => Either a b -> Either String b
-  stringEither = bimap show id
-
-#+end_src
-
-** Convert `Dec` into `Either`
-#+begin_src idris2
-  decEither : Dec a -> Either String a
-  decEither (Yes a) = Right a
-  decEither (No b) = Left "No solution"
-#+end_src
-** Print the value of an Either, or its error string
-
-#+begin_src idris2
-  -- Print the value of an Either, or its error string
-  ePrint : Show a => Either String a -> IO ()
-  ePrint ma = case ma of
-    Left e => putStrLn ("ERROR: " ++ e)
-    Right x => putStrLn (show x)
+  import Data.String.Parser
 #+end_src
 
 * Datatypes describing the solution
@@ -71,11 +49,103 @@
 ** It's decidable whether a password matches a constraint
 We build this from the fact that ordering on ~Nat~ is decidable.
 #+begin_src idris2
-  decMatches : {c : Constraint} -> {pwd : List Char} -> Dec (MatchesConstr c pwd)
-  decMatches {c} {pwd} =
+  decMatches : (c : Constraint) -> (pwd : List Char) -> Dec (MatchesConstr c pwd)
+  decMatches c pwd =
     case (Data.Nat.Order.lte (min c) (count (char c) pwd), Data.Nat.Order.lte (count (char c) pwd) (max c)) of
       (Yes pf1, Yes pf2) => Yes $ MkMatches pf1 pf2
       (No npf, _) => No (\ match => absurdity (npf $ enough match))
       (_, No npf) => No (\ match => absurdity (npf $ fewEnough match))
+
+#+end_src
+
+** Define an existential wrapper
+   Basically, we want to wrap each constraint-password pair with a proof
+   that the password either does or doesn't satisfy the constraint.
+#+begin_src idris2
+  record MatchDecision where
+    constructor MkMatchDec
+    constr : Constraint
+    pwd : String
+    decision : Dec (MatchesConstr c (fastUnpack pwd))
+#+end_src
+
+We can build a match decision from any constraint-string pair
+#+begin_src idris2
+  packDecision : (Constraint , String) -> MatchDecision
+  packDecision (constr , pwd) = MkMatchDec constr pwd (decMatches constr _)
+#+end_src
+
+  We also define a function that takes one of the records, and
+  determines whether it was or wasn't a match.
+#+begin_src idris2
+  checkMatch : MatchDecision -> Bool
+  checkMatch matchDec with (decision matchDec)
+    checkMatch matchDec | Yes _ = True
+    checkMatch matchDec | No _ = False
+#+end_src
+
+** The Whole Solution
+   Given a list of constraint-password pairs, a solution is valid
+   if the count matches the number of matches in the list
+#+begin_src idris2
+  Solution : List (Constraint , String) -> Nat -> Type
+  Solution pairs numMatch =
+    numMatch = length (filter checkMatch $ map packDecision pairs)
+#+end_src
+
+* Show that the solution is decidable and always exists
+  Nothing fancy here. The definition of solution tells us how to compute it,
+  so we just compute it using that definition. Idris is smart enough to know that
+  when we put ~Refl~ as the proof that the solution is equal to the length of filtering,
+  that it should use that function to fill in the actual definition.
+#+begin_src idris2
+  decideSoln : (input : List (Constraint , String)) -> (numMatch : Nat ** Solution input numMatch)
+  decideSoln input = (_ ** Refl)
+#+end_src
+
+* Parsing the Input
+  We can use Idris's parsing library to build a fairly simple, but elegant
+  parser for AOC's data format.
+
+
+** Parse a single line of input
+#+begin_src idris2
+  lineToPair : Parser (Constraint, String)
+  lineToPair = do
+     min <- natural
+     string "-"
+     max <- natural
+     space
+     chr <- alphaNum
+     string ":"
+     space
+     pwd <- takeWhile (\ c => not (c == '\n'))
+     pure $ (MkConstraint chr min max, pwd)
+#+end_src
+
+** Parse multiple lines of input into a list
+
+#+begin_src idris2
+  parseLines : Parser (List (Constraint, String))
+  parseLines = sepBy lineToPair (string "\n")
+#+end_src
+
+* Read the input file and print the solution
+#+begin_src idris2 :hidden
+  Show Constraint where
+    show c = show (min c , max c , char c)
+#+end_src
+
+
+  This is a partial function, so we don't need to do a bunch of
+  monadic error handling.
+#+begin_src idris2
+  %default partial
+  main : IO ()
+  main = do
+    (Right contents) <- readFile "Day2.in"
+    let (Right (input, _)) = parse parseLines contents
+    let (count ** soln) = decideSoln input
+    putStrLn $ show count
 
 #+end_src
