@@ -1,8 +1,8 @@
-#+TITLE: Verified AOC in Idris2: Day 2 Puzzle 1
+#+TITLE: Verified AOC in Idris: Day 2 Puzzle 1
 
 * Some Imports
 
-#+begin_src idris2
+#+begin_src idris
 
   import System.File
   import Data.Strings
@@ -23,7 +23,7 @@
 
 ** Constraint on whether a password is valid or not
    Contains the character, and the min/max number of times that character can occur.
-#+begin_src idris2
+#+begin_src idris
   record Constraint where
     constructor MkConstraint
     char : Char
@@ -31,14 +31,14 @@
 #+end_src
 
 ** Define the number of occurrences of a character in a string of text
-#+begin_src idris2
+#+begin_src idris
   count : Char -> List Char -> Nat
   count chr pwd = length (filter (== chr) pwd)
 #+end_src
 
 ** A proof that a given password matches a constraint
 
-#+begin_src idris2
+#+begin_src idris
   record MatchesConstr (c : Constraint) (pwd : List Char) where
     constructor MkMatches
     enough : LTE (min c) (length (filter (== (char c)) pwd))
@@ -48,7 +48,7 @@
 
 ** It's decidable whether a password matches a constraint
 We build this from the fact that ordering on ~Nat~ is decidable.
-#+begin_src idris2
+#+begin_src idris
   decMatches : (c : Constraint) -> (pwd : List Char) -> Dec (MatchesConstr c pwd)
   decMatches c pwd =
     case (Data.Nat.Order.lte (min c) (count (char c) pwd), Data.Nat.Order.lte (count (char c) pwd) (max c)) of
@@ -61,7 +61,7 @@ We build this from the fact that ordering on ~Nat~ is decidable.
 ** Define an existential wrapper
    Basically, we want to wrap each constraint-password pair with a proof
    that the password either does or doesn't satisfy the constraint.
-#+begin_src idris2
+#+begin_src idris
   record MatchDecision where
     constructor MkMatchDec
     constr : Constraint
@@ -70,14 +70,14 @@ We build this from the fact that ordering on ~Nat~ is decidable.
 #+end_src
 
 We can build a match decision from any constraint-string pair
-#+begin_src idris2
+#+begin_src idris
   packDecision : (Constraint , String) -> MatchDecision
   packDecision (constr , pwd) = MkMatchDec constr pwd (decMatches constr _)
 #+end_src
 
   We also define a function that takes one of the records, and
   determines whether it was or wasn't a match.
-#+begin_src idris2
+#+begin_src idris
   checkMatch : MatchDecision -> Bool
   checkMatch matchDec with (decision matchDec)
     checkMatch matchDec | Yes _ = True
@@ -87,7 +87,7 @@ We can build a match decision from any constraint-string pair
 ** The Whole Solution
    Given a list of constraint-password pairs, a solution is valid
    if the count matches the number of matches in the list
-#+begin_src idris2
+#+begin_src idris
   Solution : List (Constraint , String) -> Nat -> Type
   Solution pairs numMatch =
     numMatch = length (filter checkMatch $ map packDecision pairs)
@@ -98,7 +98,7 @@ We can build a match decision from any constraint-string pair
   so we just compute it using that definition. Idris is smart enough to know that
   when we put ~Refl~ as the proof that the solution is equal to the length of filtering,
   that it should use that function to fill in the actual definition.
-#+begin_src idris2
+#+begin_src idris
   decideSoln : (input : List (Constraint , String)) -> (numMatch : Nat ** Solution input numMatch)
   decideSoln input = (_ ** Refl)
 #+end_src
@@ -109,7 +109,7 @@ We can build a match decision from any constraint-string pair
 
 
 ** Parse a single line of input
-#+begin_src idris2
+#+begin_src idris
   lineToPair : Parser (Constraint, String)
   lineToPair = do
      min <- natural
@@ -125,13 +125,13 @@ We can build a match decision from any constraint-string pair
 
 ** Parse multiple lines of input into a list
 
-#+begin_src idris2
+#+begin_src idris
   parseLines : Parser (List (Constraint, String))
   parseLines = sepBy lineToPair (string "\n")
 #+end_src
 
 * Read the input file and print the solution
-#+begin_src idris2 :hidden
+#+begin_src idris :hidden
   Show Constraint where
     show c = show (min c , max c , char c)
 #+end_src
@@ -139,7 +139,7 @@ We can build a match decision from any constraint-string pair
 
   This is a partial function, so we don't need to do a bunch of
   monadic error handling.
-#+begin_src idris2
+#+begin_src idris
   %default partial
   main : IO ()
   main = do
