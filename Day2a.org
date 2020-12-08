@@ -12,6 +12,10 @@
   import Data.List.Elem
   import Decidable.Equality
   import Data.Void
+  import Data.Nat
+  import Data.Nat.Order
+  import Decidable.Decidable
+  import Decidable.Order
 #+end_src
 * Helper Functions
 ** Convert Either to have Strings for the error case
@@ -28,6 +32,7 @@
   decEither (No b) = Left "No solution"
 #+end_src
 ** Print the value of an Either, or its error string
+
 #+begin_src idris2
   -- Print the value of an Either, or its error string
   ePrint : Show a => Either String a -> IO ()
@@ -38,23 +43,39 @@
 
 * Datatypes describing the solution
 
-** Constraints on a Password's Validity
+** Constraint on whether a password is valid or not
+   Contains the character, and the min/max number of times that character can occur.
 #+begin_src idris2
-record Constraint where
-  constructor MkConstr
-    lower, upper : Nat
+  record Constraint where
+    constructor MkConstraint
     char : Char
+    min , max : Nat
 #+end_src
 
-** Valid Passwords
-   - Given a character and a range of occurrences,
-     a password is valid for those constraints if it
-     contains a number of occurrences of the character
-     in the appropriate range
+** Define the number of occurrences of a character in a string of text
+#+begin_src idris2
+  count : Char -> List Char -> Nat
+  count chr pwd = length (filter (== chr) pwd)
+#+end_src
+
+** A proof that a given password matches a constraint
 
 #+begin_src idris2
--- record ValidPassword (lower : Nat) (upper : Nat) (char : Char) where
---   constructor MkValid
+  record MatchesConstr (c : Constraint) (pwd : List Char) where
+    constructor MkMatches
+    enough : LTE (min c) (length (filter (== (char c)) pwd))
+    fewEnough : LTE (length (filter (== (char c)) pwd)) (max c)
 
+#+end_src
+
+** It's decidable whether a password matches a constraint
+We build this from the fact that ordering on ~Nat~ is decidable.
+#+begin_src idris2
+  decMatches : {c : Constraint} -> {pwd : List Char} -> Dec (MatchesConstr c pwd)
+  decMatches {c} {pwd} =
+    case (Data.Nat.Order.lte (min c) (count (char c) pwd), Data.Nat.Order.lte (count (char c) pwd) (max c)) of
+      (Yes pf1, Yes pf2) => Yes $ MkMatches pf1 pf2
+      (No npf, _) => No (\ match => absurdity (npf $ enough match))
+      (_, No npf) => No (\ match => absurdity (npf $ fewEnough match))
 
 #+end_src

@@ -1,0 +1,7 @@
+* Imports and such
+
+#+begin_src idris2
+  module Day4a
+
+  import Data.Nat
+#+end_src
