@@ -3,5 +3,128 @@
 #+begin_src idris2
   module Day4a
 
+  import System.File
+  import Data.Strings
+  import Data.Either
+  import Data.List
+  import Data.List.Quantifiers
+  import Data.List.Elem
+  import Decidable.Equality
+  import Data.Void
   import Data.Nat
+  import Data.Nat.Order
+  import Decidable.Decidable
+  import Decidable.Order
+  import Data.String.Parser
+  import Data.Fin
+  import Data.Fin.Extra
+
+  %default total
 #+end_src
+
+* Datatypes Describing the Solution
+
+** Represent Fields as finite numbers
+#+begin_src idris
+  Key : Type
+  Key = Fin 8
+
+  Cid : Key
+  Cid = FZ
+#+end_src
+
+** Helpful Decision Procedure
+   It says that if we can decide a property for each finite number,
+   we can decide whether it holds for all members of ~Fin n~.
+   I should probably add this to the ~contrib~ branch of the stdlib.
+
+*** Our helper lemma:
+#+begin_src idris
+
+  natToFinLTE : (n : Nat) -> LTE (S n) m -> Fin m
+  natToFinLTE n = weakenLTE (last {n})
+
+  natToFinToNat :
+    (n : Nat)
+    -> (lte : LTE (S n) m)
+    -> finToNat (natToFinLTE n lte) = n
+  natToFinToNat 0 (LTESucc lte) = Refl
+  natToFinToNat (S k) (LTESucc lte) = rewrite natToFinToNat k lte in Refl
+  -- natTOFinToNat n = ?nfn
+
+  -- lteDichotomy :
+
+  helper1 :
+    {P : (Fin (S n1) -> Type)}
+    -> P FZ
+    -> (x : Fin (S n1))
+    -> LTE (finToNat x) 0
+    -> P x
+  helper1 pf FZ LTEZero = pf
+  -- helper1 (LTESucc y) _ impossibl
+
+  helper2 :
+     {0 n1 : Nat}
+     -> {P : Fin (S n1) -> Type}
+     -> (bound' : Nat)
+     -> (bounded : LTE (S bound') n1)
+     -> P (FS $ natToFinLTE bound' bounded)
+     -> ((x : Fin (S n1)) -> LTE (finToNat x) bound' -> P x )
+     -> (x : Fin (S n1)) -> LTE (finToNat x) (S bound') -> P x
+  helper2 bound' bounded prf rec x lte with (isLTE (finToNat x) bound')
+    helper2 bound' bounded prf rec x lte | Yes lte2 = rec _ lte2
+    helper2 bound' bounded prf rec x lte | No nlte = rewrite eq in prf
+      where
+         natEq : finToNat x = S bound'
+         natEq = LTEIsAntisymmetric _ _  lte (notLTEImpliesGT nlte)
+         eq : x = (FS $ natToFinLTE bound' bounded)
+         eq  = finToNatInjective _ _ $ trans natEq $ cong S (sym $ natToFinToNat _ _)
+
+
+  boundedFiniteDec :
+    {0 n : Nat}
+    -> {P : Fin n -> Type}
+    -> (bound : Nat)
+    -> (boundBounded : LTE (S bound) n)
+    -> (Dec  (P (natToFinLTE bound boundBounded)) )
+    -> ((x : Fin n) -> Dec (P x))
+    -> Dec ((x : Fin n) -> LTE (finToNat x) bound -> P x )
+  boundedFiniteDec {  n = n} bound boundBounded (No contra) ddec =
+    No $ \f => contra (f _ $ rewrite natToFinToNat bound boundBounded in lteRefl)
+  boundedFiniteDec {  n = S n1} 0 (LTESucc _) (Yes prf) ddec = Yes $ helper1 prf
+  boundedFiniteDec {  n = S n1} (S bound') (LTESucc lte) (Yes prf) ddec
+    with (  boundedFiniteDec {  n = S n1} bound' (lteSuccRight lte) (ddec _) ddec)
+    boundedFiniteDec {  n = S n1} (S bound') (LTESucc bounded) (Yes prf) ddec | No nrec =
+      No $ \ f => nrec $ \x, lte => f _ (lteSuccRight lte)
+    boundedFiniteDec {  n = S n1} (S bound') (LTESucc bounded) (Yes prf) ddec | Yes rec =
+      Yes $ helper2 bound' bounded prf rec
+
+#+end_src
+
+*** The decision procedure itself
+
+#+begin_src idris
+
+  finiteDec : {n : Nat} -> {P : Fin n -> Type} -> ((x : Fin n) -> Dec (P x)) -> Dec ((x : Fin n) -> P x)
+  finiteDec {n = Z} dec = Yes $ \ x => absurd x
+  finiteDec {n = S n1} dec with (boundedFiniteDec (finToNat last) (elemSmallerThanBound (last {n = n1})) (dec _) dec)
+      finiteDec {n = S n1} dec | Yes pf =
+        Yes $ \ x => pf x $ rewrite finToNatLastIsBound {n = n1} in fromLteSucc $ elemSmallerThanBound _
+      finiteDec {n = S n1} dec | No npf = No $ \f => npf $ \ x, lte => f x
+
+#+end_src
+
+
+** Predicate for whether a list has all mandatory keys
+#+begin_src idris
+  -- HasAllKeys : List Key -> Type
+  -- HasAllKeys l = (k : Key) -> Either (k = Cid) (Elem k l)
+
+#+end_src
+
+** It's decidable whether a list has a given key
+#+begin_src idris
+
+#+end_src
+
+** It's decidable whether a list has all mandatory keys
