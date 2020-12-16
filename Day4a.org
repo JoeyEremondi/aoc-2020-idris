@@ -101,9 +101,9 @@
 
   record BoundedEx {n : Nat} (bound : Nat) (P : Fin n -> Type) where
     constructor BndEx
-    {x : Fin n}
-    0 bndLTE : LTE (finToNat x) bound
-    bndPf : P x
+    {bndWitness : Fin n}
+    0 bndLTE : LTE (finToNat bndWitness) bound
+    bndPf : P bndWitness
 
   boundedFiniteEx :
       {0 n : Nat}
@@ -132,15 +132,6 @@
             where
               eq : x = (FS $ natToFinLTE bound' lte)
               eq  = finToNatInjective _ _  $ trans (LTEIsAntisymmetric _ _  xlte (notLTEImpliesGT nlt)) $ cong S (sym $ natToFinToNat _ _)
-         -- boundedFiniteEx {n = S n1} 0 (LTESucc lte) (No npf) ddec = No \ triple => helper (fst triple) (fst (snd triple)) (snd (snd triple))
-  --   where
-  --     helper : (x : Fin (S n1)) -> (LTE (finToNat x) 0) -> P x -> Void
-  --     helper FZ LTEZero pf = npf pf
-  -- boundedFiniteEx {n = S n1} (S bound') (LTESucc lte) (No npf) ddec
-  --   with (boundedFiniteEx {n = S n1} bound' (lteSuccRight lte) (ddec _) ddec)
-  --   boundedFiniteEx {n = S n1} (S bound') (LTESucc lte) (No npf) ddec | Yes (wit ** (witLt , witPf)) =
-  --     Yes (wit ** (lteSuccRight witLt , witPf))
-  --   boundedFiniteEx {n = S n1} (S bound') (LTESucc lte) (No npf) ddec | No rec = ?rhs2
 
 
 #+end_src
@@ -148,6 +139,19 @@
 *** The decision procedure itself
 
 #+begin_src idris
+
+
+  finiteDecEx : {k : Nat} -> {P : Fin k -> Type} -> ((x : Fin k) -> Dec (P x)) -> Dec (x : Fin k ** P x)
+  finiteDecEx {k = 0} dec = No $ \ pr => absurd (fst pr)
+  finiteDecEx {k = (S n1)} dec
+    with (boundedFiniteEx (finToNat last) (elemSmallerThanBound (last {n = n1})) (dec _) dec)
+    finiteDecEx {k = (S n1)} dec | Yes bnd = Yes (bndWitness bnd ** bndPf bnd)
+    finiteDecEx {k = (S n1)} dec | No nbnd = No $ \ pr => nbnd $ BndEx lessThanLast (snd pr)
+      where
+        lessThanLast : {x : Fin (S n1)} -> LTE (finToNat x) (finToNat (last {n = n1} ))
+        lessThanLast {x} =
+          rewrite finToNatLastIsBound {n = n1}
+          in fromLteSucc $ elemSmallerThanBound x
 
   finiteDec : {n : Nat} -> {P : Fin n -> Type} -> ((x : Fin n) -> Dec (P x)) -> Dec ((x : Fin n) -> P x)
   finiteDec {n = Z} dec = Yes $ \ x => absurd x
