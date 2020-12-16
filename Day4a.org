@@ -99,6 +99,50 @@
     boundedFiniteDec {  n = S n1} (S bound') (LTESucc bounded) (Yes prf) ddec | Yes rec =
       Yes $ helper2 bound' bounded prf rec
 
+  record BoundedEx {n : Nat} (bound : Nat) (P : Fin n -> Type) where
+    constructor BndEx
+    {x : Fin n}
+    0 bndLTE : LTE (finToNat x) bound
+    bndPf : P x
+
+  boundedFiniteEx :
+      {0 n : Nat}
+      -> {P : Fin n -> Type}
+      -> (bound : Nat)
+      -> (boundBounded : LTE (S bound) n)
+      -> (Dec  (P (natToFinLTE bound boundBounded)) )
+      -> ((x : Fin n) -> Dec (P x))
+      -> Dec (BoundedEx bound P)
+  boundedFiniteEx {n = n} bound boundBounded (Yes pf) ddec =
+    Yes $ BndEx (rewrite natToFinToNat bound boundBounded in lteRefl) pf
+  boundedFiniteEx {n = S n1} 0 (LTESucc bounded)(No npf) ddec = No $ \bnd => helper (bndLTE bnd) (bndPf bnd)
+    where
+        helper : {x : Fin (S n1)} -> (0 _ : LTE (finToNat x) 0) -> P x -> Void
+        helper {x = FZ} LTEZero pf = npf pf
+  boundedFiniteEx {n = S n1} (S bound') (LTESucc lte) (No npf) ddec with (boundedFiniteEx {  n = S n1} bound' (lteSuccRight lte) (ddec _) ddec)
+    boundedFiniteEx {n = S n1} (S bound') (LTESucc lte) (No npf) ddec | Yes bnd =
+      Yes $ BndEx (lteSuccRight $ bndLTE bnd) (bndPf bnd)
+    boundedFiniteEx {n = S n1} (S bound') (LTESucc lte) (No npf) ddec | No rec =
+      No \ bnd =>  void $ helper (bndLTE bnd) (bndPf bnd)
+      where
+        helper : {x : Fin (S n1)} ->  LTE (finToNat x) (S bound') -> P x -> Void
+        helper {x = x} xlte px with (isLTE (finToNat x) bound')
+          helper {x = x} xlte px | Yes blte = rec $ BndEx blte px
+          helper {x = x} xlte px | No nlt = npf $ (rewrite (sym eq) in px)
+            where
+              eq : x = (FS $ natToFinLTE bound' lte)
+              eq  = finToNatInjective _ _  $ trans (LTEIsAntisymmetric _ _  xlte (notLTEImpliesGT nlt)) $ cong S (sym $ natToFinToNat _ _)
+         -- boundedFiniteEx {n = S n1} 0 (LTESucc lte) (No npf) ddec = No \ triple => helper (fst triple) (fst (snd triple)) (snd (snd triple))
+  --   where
+  --     helper : (x : Fin (S n1)) -> (LTE (finToNat x) 0) -> P x -> Void
+  --     helper FZ LTEZero pf = npf pf
+  -- boundedFiniteEx {n = S n1} (S bound') (LTESucc lte) (No npf) ddec
+  --   with (boundedFiniteEx {n = S n1} bound' (lteSuccRight lte) (ddec _) ddec)
+  --   boundedFiniteEx {n = S n1} (S bound') (LTESucc lte) (No npf) ddec | Yes (wit ** (witLt , witPf)) =
+  --     Yes (wit ** (lteSuccRight witLt , witPf))
+  --   boundedFiniteEx {n = S n1} (S bound') (LTESucc lte) (No npf) ddec | No rec = ?rhs2
+
+
 #+end_src
 
 *** The decision procedure itself
